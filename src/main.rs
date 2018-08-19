@@ -10,9 +10,7 @@ extern crate chrono;
 extern crate serde_derive;
 extern crate serde_json;
 
-extern crate xml5ever;
-extern crate markup5ever;
-extern crate htmlescape;
+extern crate sxd_document;
 
 use std::{fs};
 use std::path::PathBuf;
