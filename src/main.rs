@@ -10,13 +10,11 @@ extern crate chrono;
 extern crate serde_derive;
 extern crate serde_json;
 
-extern crate html5ever;
+extern crate xml5ever;
 
 use std::{fs};
 use std::path::PathBuf;
-
-use chrono::DateTime;
-
+    
 mod xml;
 mod log;
 

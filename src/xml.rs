@@ -4,20 +4,16 @@ use std::str::FromStr;
 
 use chrono::{DateTime, Utc, TimeZone};
 
-use html5ever::tendril::{TendrilSink};
-use html5ever::rcdom::{NodeData, Handle, Node, RcDom};
-use html5ever::interface::TreeSink;
-use html5ever::QualName;
-use html5ever::Attribute as XmlAttribute;
-use html5ever::{ParseOpts};
-use html5ever::tree_builder::QuirksMode;
+use xml5ever::tendril::{TendrilSink};
+use xml5ever::rcdom::{NodeData, Handle, Node, RcDom};
+use xml5ever::interface::TreeSink;
+use xml5ever::QualName;
+use xml5ever::Attribute as XmlAttribute;
 
 use log::{SmsMessageKind, PhoneNumber, SmsMessage, TextLog};
 
 pub fn parse_log(text: String) -> TextLog {
-    let mut opts = ParseOpts::default();
-    opts.tree_builder.quirks_mode = QuirksMode::Quirks;
-    let parser = ::html5ever::driver::parse_document(
+    let parser = ::xml5ever::driver::parse_document(
         RcDom::default(), Default::default());
     let mut dom = parser.one(text);
     println!("Errors {:#?}", dom.errors);

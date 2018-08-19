@@ -13,4 +13,4 @@ serde_derive = "^1"
 serde_json = "^1"
 serde = "^1"
 # This is likely the only thing which can parse my rotten XML -_-
-html5ever = { git = "https://github.com/servo/html5ever.git", rev = "56b8b30" }
+xml5ever = { git = "https://github.com/servo/html5ever.git", rev = "56b8b30" }
