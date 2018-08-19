@@ -1,0 +1,8 @@
+# I will **never** publish my text history
+data
+*.json
+
+# Intellij
+.idea
+/target
+**/*.rs.bk

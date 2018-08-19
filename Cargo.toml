@@ -1,0 +1,18 @@
+[package]
+name = "sms2markdown"
+version = "0.1.0"
+authors = ["Techcable <Techcable@techcable.net>"]
+
+[dependencies]
+# Argument parsing
+clap = "^2"
+# Time library
+chrono = { version = "^0.4", features = ["serde"] }
+# Serde
+serde_derive = "^1"
+serde_json = "^1"
+serde = "^1"
+# This is likely the only thing which can parse my rotten XML -_-
+xml5ever = { git = "https://github.com/servo/html5ever.git", rev = "56b8b30" }
+markup5ever = { git = "https://github.com/servo/html5ever.git", rev = "56b8b30" }
+htmlescape = "*"
