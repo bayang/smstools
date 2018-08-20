@@ -9,14 +9,19 @@ use xml5ever::rcdom::{NodeData, Handle, Node, RcDom};
 use xml5ever::interface::TreeSink;
 use xml5ever::QualName;
 use xml5ever::Attribute as XmlAttribute;
+use xml5ever::driver::XmlParseOpts;
 
 use log::{SmsMessageKind, PhoneNumber, SmsMessage, TextLog};
 
-pub fn parse_log(text: String) -> TextLog {
+pub fn parse_log(verbose: bool, text: String) -> TextLog {
+    let mut opts = XmlParseOpts::default();
+    opts.tokenizer.exact_errors = verbose;
     let parser = ::xml5ever::driver::parse_document(
-        RcDom::default(), Default::default());
+        RcDom::default(), opts);
     let mut dom = parser.one(text);
-    println!("Errors {:#?}", dom.errors);
+    if verbose {
+        println!("Errors {:#?}", dom.errors);
+    }
     let document = dom.get_document();
     let element = document.children.borrow().iter()
         .find_map(|node| element_contents(&**node))
@@ -41,7 +46,6 @@ fn parse_sms(element: &ElementData) -> SmsMessage {
                 escaped.extend(c.escape_unicode());
             }
         }
-        panic!("Unexpected body {}", escaped);
     }
     let readable_date = element.attr("readable_date").to_owned();
     let contact_name = element.attr("contact_name").to_owned();

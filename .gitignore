@@ -1,6 +1,7 @@
 # I will **never** publish my text history
 data
 *.json
+*.xml
 
 # Intellij
 .idea
