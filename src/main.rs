@@ -11,6 +11,7 @@ extern crate chrono;
 extern crate serde_derive;
 extern crate serde_json;
 extern crate serde;
+extern crate base64;
 
 extern crate xml5ever;
 
@@ -21,6 +22,7 @@ mod sanitize;
 mod xml;
 mod log;
 mod formatter;
+mod utils;
 
 fn main() {
     let matches = clap_app!(sms2markdown => 
@@ -38,7 +40,6 @@ fn main() {
     let verbose = matches.is_present("verbose");
     let raw_text = String::from_utf8(fs::read(&file).unwrap()).unwrap();
     let sanitized = ::sanitize::cleanup_html_escapes(&raw_text);
-    fs::write("sanitized.xml", &sanitized).unwrap();
     let log = ::xml::parse_log(verbose, sanitized);
     fs::write(&output, ::formatter::to_string_escaped(&log)).unwrap();
 }

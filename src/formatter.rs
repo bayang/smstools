@@ -1,8 +1,8 @@
 use std::io;
 
 
-use serde::{Serialize, Serializer as SerdeSerializer};
-use serde_json::ser::{Formatter, PrettyFormatter, CharEscape, Serializer};
+use serde::{Serialize};
+use serde_json::ser::{Formatter, PrettyFormatter, Serializer};
 
 pub fn to_string_escaped<V: Serialize>(v: &V) -> String {
     let mut serializer = Serializer::with_formatter(
@@ -25,7 +25,7 @@ impl<F: Formatter> Formatter for EscapingFormatter<F> {
                 let mut buffer = [0u16; 2];
                 // Escape all unicode into their UTF16 representation(s)
                 for &escaped in c.encode_utf16(&mut buffer).iter() {
-                    write!(writer, "\\u{:X}", escaped)?;
+                    write!(writer, "\\u{:04X}", escaped)?;
                 }
             }
         }

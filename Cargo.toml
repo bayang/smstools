@@ -12,5 +12,8 @@ chrono = { version = "^0.4", features = ["serde"] }
 serde_derive = "^1"
 serde_json = "^1"
 serde = "^1"
+# base64
+base64 = "0.9.2"
+base64-serde = "0.3"
 # This is likely the only thing which can parse my rotten XML -_-
 xml5ever = { git = "https://github.com/servo/html5ever.git", rev = "56b8b30" }
