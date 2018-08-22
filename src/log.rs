@@ -1,12 +1,36 @@
+use std::fmt::{self, Display};
 use chrono::{DateTime, Utc};
+use std::collections::{HashMap, HashSet};
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq, Serialize, Deserialize)]
 pub struct PhoneNumber(pub String);
+impl Display for PhoneNumber {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TextLog {
     pub sms_messages: Vec<SmsMessage>,
     pub mms_messages: Vec<MmsMessage>
+}
+impl TextLog {
+    pub fn list_contacts(&self) -> HashMap<PhoneNumber, HashSet<String>> {
+        let mut result = HashMap::with_capacity(
+            self.sms_messages.len() + self.mms_messages.len());
+        for sms in &self.sms_messages {
+            result.entry(sms.address.clone())
+                .or_insert_with(HashSet::new)
+                .insert(sms.contact_name.clone());
+        }
+        for mms in &self.mms_messages {
+            result.entry(mms.address.clone())
+                .or_insert_with(HashSet::new)
+                .insert(mms.contact_name.clone());
+        }
+        result
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

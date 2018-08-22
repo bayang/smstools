@@ -12,6 +12,7 @@ extern crate serde_derive;
 extern crate serde_json;
 extern crate serde;
 extern crate base64;
+extern crate itertools;
 
 extern crate xml5ever;
 
@@ -20,6 +21,9 @@ use std::{fs};
 use std::io::{self, BufReader, Read};
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
+use std::collections::{HashMap, HashSet};
+
+use itertools::Itertools;
 
 mod sanitize;
 mod xml;
@@ -27,15 +31,19 @@ mod log;
 mod formatter;
 mod utils;
 
+use self::log::PhoneNumber;
+
 fn app() -> ::clap::App<'static, 'static> {
     clap_app!(sms2markdown =>
     	(version: crate_version!())
     	(author: "Techcable <Techcable@techcable.net>")
     	// SMS Backup & Restore v10.05.210
-    	(about: "Converts SMS Backups from XML to JSON")
-    	//(@arg contact: +required "Sets the contact whose texts we need to log")
+    	(about: "Maniuplates and reformats SMS backups")
     	(@arg file: +required "Sets the file to read data from")
     	(@arg verbose: -v --verbose "Gives verbose error and status information")
+    	(@subcommand list_contacts =>
+    	    (about: "Lists the names of everyone you've ever texted")
+    	)
     	(@subcommand dump_json =>
             (about: "Dumps a json formatted version of these logs")
         	(@arg output: +required "Output JSON file")
@@ -49,6 +57,7 @@ fn main() {
     let verbose = matches.is_present("verbose");
     let options = CommonOptions { file, verbose };
     match matches.subcommand() {
+        ("list_contacts", Some(_)) => list_contacts(&options),
         ("dump_json", Some(matches)) => {
             let output: PathBuf = matches.value_of("output").unwrap().into();
             dump_json(&options, &output);
@@ -61,6 +70,48 @@ fn main() {
         }
     }
 
+}
+fn list_contacts(options: &CommonOptions) {
+    const UNKNOWN_CONTACT_NAME: &str = "(Unknown)";
+    let log = options.parse_log();
+    let contacts = log.list_contacts();
+    let mut by_name = HashMap::with_capacity(contacts.len());
+    let mut unnamed_contacts = Vec::new();
+    for (number, names) in contacts.iter() {
+        let mut found_name = false;
+        for name in names {
+            if name != UNKNOWN_CONTACT_NAME {
+                by_name.entry(name.clone())
+                    .or_insert_with(HashSet::new)
+                    .insert(number.clone());
+                found_name = true;
+            }
+        }
+        if !found_name {
+            unnamed_contacts.push(number.clone());
+        }
+    }
+    let mut named_contacts = by_name.iter()
+        .map(|(name, phones)| {
+            let mut phones = phones.iter().cloned()
+                .collect::<Vec<PhoneNumber>>();
+            phones.sort();
+            (name.clone(), phones)
+        })
+        .collect::<Vec<(String, Vec<PhoneNumber>)>>();
+    named_contacts.sort();
+    unnamed_contacts.sort();
+    println!("{}", bold_underline("Named contacts"));
+    for (name, phones) in named_contacts {
+        println!("  {} - {}", name, phones.iter().join(", "))
+    }
+    println!("{}", bold_underline("Unnamed contacts"));
+    for phone in unnamed_contacts {
+        println!("  {}", phone);
+    }
+}
+fn bold_underline<T: AsRef<str>>(text: T) -> String {
+    format!("\u{1B}[1;4m{}\u{1B}[0m", text.as_ref())
 }
 fn dump_json(options: &CommonOptions, output: &Path) {
     let log = options.parse_log();
