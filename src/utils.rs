@@ -14,9 +14,9 @@ pub mod base64_opt {
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Vec<u8>>, D::Error>
         where D: Deserializer<'de>
     {
-        let s = Option::<&str>::deserialize(deserializer)?;
+        let s = Option::<String>::deserialize(deserializer)?;
         Ok(match s {
-            Some(s) => Some(base64::decode(s).map_err(de::Error::custom)?),
+            Some(s) => Some(base64::decode(&s).map_err(de::Error::custom)?),
             None => None
         })
     }

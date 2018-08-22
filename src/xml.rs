@@ -35,7 +35,6 @@ pub fn parse_log(verbose: bool, text: String) -> TextLog {
     for mms in element.filter_elements("mms") {
         mms_messages.push(parse_mms(&mms));
     }
-    eprintln!("TODO: SUPPORT MMS");
     TextLog { sms_messages, mms_messages }
 }
 
