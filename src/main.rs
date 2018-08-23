@@ -1,7 +1,8 @@
 #![feature(
     iterator_find_map, // indespensible
     str_escape,
-    range_contains // Why isn't this already stable?
+    range_contains, // Why isn't this already stable?
+    proc_macro_non_items, // Needed for maud
 )]
 #[macro_use]
 extern crate clap;
@@ -13,6 +14,7 @@ extern crate serde_json;
 extern crate serde;
 extern crate base64;
 extern crate itertools;
+extern crate maud;
 
 extern crate xml5ever;
 
@@ -30,6 +32,7 @@ mod xml;
 mod log;
 mod formatter;
 mod utils;
+mod html;
 
 use self::log::PhoneNumber;
 
@@ -41,6 +44,10 @@ fn app() -> ::clap::App<'static, 'static> {
     	(about: "Maniuplates and reformats SMS backups")
     	(@arg file: +required "Sets the file to read data from")
     	(@arg verbose: -v --verbose "Gives verbose error and status information")
+    	(@subcommand html_log =>
+    	    (about: "Creates a HTML log of texts with the specified person")
+    	    (@arg contact: +required "The contact whose texts we're printing")
+    	)
     	(@subcommand list_contacts =>
     	    (about: "Lists the names of everyone you've ever texted")
     	)
@@ -57,6 +64,10 @@ fn main() {
     let verbose = matches.is_present("verbose");
     let options = CommonOptions { file, verbose };
     match matches.subcommand() {
+        ("html_log", Some(matches)) => {
+            let contact = matches.value_of("contact").unwrap();
+            html_log(&options, contact)
+        }
         ("list_contacts", Some(_)) => list_contacts(&options),
         ("dump_json", Some(matches)) => {
             let output: PathBuf = matches.value_of("output").unwrap().into();
@@ -116,6 +127,10 @@ fn bold_underline<T: AsRef<str>>(text: T) -> String {
 fn dump_json(options: &CommonOptions, output: &Path) {
     let log = options.parse_log();
     fs::write(&output, ::formatter::to_string_escaped(&log)).unwrap();
+}
+fn html_log(options: &CommonOptions, contact: &str) {
+    let log = options.parse_log();
+    println!("{}", ::html::render_log(&log, contact).0);
 }
 struct CommonOptions {
     verbose: bool,

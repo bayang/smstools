@@ -10,12 +10,33 @@ impl Display for PhoneNumber {
     }
 }
 
+pub trait TextMessage {
+    fn address(&self) -> &PhoneNumber;
+    fn contact_name(&self) -> &str;
+    fn date(&self) -> DateTime<Utc>;
+    fn readable_date(&self) -> &str;
+    fn kind(&self) -> MessageKind;
+    fn body(&self) -> BodyKind;
+}
+pub enum BodyKind<'a> {
+    Sms(&'a str),
+    Mms {
+        parts: &'a [MmsMessagePart]
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TextLog {
     pub sms_messages: Vec<SmsMessage>,
     pub mms_messages: Vec<MmsMessage>
 }
 impl TextLog {
+    //noinspection RsNeedlessLifetimes
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item=&'a TextMessage> + 'a {
+        self.sms_messages.iter()
+            .map(|message| message as &TextMessage)
+            .chain(self.mms_messages.iter().map(|message| message as &TextMessage))
+    }
     pub fn list_contacts(&self) -> HashMap<PhoneNumber, HashSet<String>> {
         let mut result = HashMap::with_capacity(
             self.sms_messages.len() + self.mms_messages.len());
@@ -52,6 +73,37 @@ pub struct MmsMessage {
     /// The parts of this MMS message
     pub parts: Vec<MmsMessagePart>
 }
+impl TextMessage for MmsMessage {
+    #[inline]
+    fn address(&self) -> &PhoneNumber {
+        &self.address
+    }
+
+    #[inline]
+    fn contact_name(&self) -> &str {
+        &self.contact_name
+    }
+
+    #[inline]
+    fn date(&self) -> DateTime<Utc> {
+        self.date
+    }
+
+    #[inline]
+    fn readable_date(&self) -> &str {
+        &self.readable_date
+    }
+
+    #[inline]
+    fn kind(&self) -> MessageKind {
+        self.kind
+    }
+
+    #[inline]
+    fn body(&self) -> BodyKind {
+        BodyKind::Mms { parts: &self.parts }
+    }
+}
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MmsMessagePart {
     /// The content type of this message part
@@ -84,7 +136,38 @@ pub struct SmsMessage {
     /// The body of this SMS message
     pub body: String
 }
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+impl TextMessage for SmsMessage {
+    #[inline]
+    fn address(&self) -> &PhoneNumber {
+        &self.address
+    }
+
+    #[inline]
+    fn contact_name(&self) -> &str {
+        &self.contact_name
+    }
+
+    #[inline]
+    fn date(&self) -> DateTime<Utc> {
+        self.date
+    }
+
+    #[inline]
+    fn readable_date(&self) -> &str {
+        &self.readable_date
+    }
+
+    #[inline]
+    fn kind(&self) -> MessageKind {
+        self.kind
+    }
+
+    #[inline]
+    fn body(&self) -> BodyKind {
+        BodyKind::Sms(&self.body)
+    }
+}
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename = "lower")]
 pub enum MessageKind {
     Sent,
