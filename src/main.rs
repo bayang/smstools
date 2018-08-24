@@ -37,11 +37,11 @@ mod html;
 use self::log::PhoneNumber;
 
 fn app() -> ::clap::App<'static, 'static> {
-    clap_app!(sms2markdown =>
+    clap_app!(smstools =>
     	(version: crate_version!())
     	(author: "Techcable <Techcable@techcable.net>")
     	// SMS Backup & Restore v10.05.210
-    	(about: "Maniuplates and reformats SMS backups")
+    	(about: "A set of utilities for processing SMS backups")
     	(@arg file: +required "Sets the file to read data from")
     	(@arg verbose: -v --verbose "Gives verbose error and status information")
     	(@subcommand html_log =>

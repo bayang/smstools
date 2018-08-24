@@ -1,7 +1,9 @@
 [package]
-name = "sms2markdown"
+name = "smstools"
+description = "A set of utilities for processing SMS backups"
 version = "0.1.0"
 authors = ["Techcable <Techcable@techcable.net>"]
+publish = false
 
 [dependencies]
 # Argument parsing
