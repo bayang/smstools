@@ -2,6 +2,7 @@
 data
 *.json
 *.xml
+*.html
 
 # Intellij
 .idea

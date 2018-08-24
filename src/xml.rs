@@ -43,19 +43,19 @@ fn parse_mms(element: &ElementData) -> MmsMessage {
     let date = parse_unix_epoch(element.attr("date"));
     let readable_date = element.attr("readable_date").to_owned();
     let contact_name = element.attr("contact_name").to_owned();
-    let msg_type = element.attr("read");
+    let msg_type = element.attr("m_type");
     let kind = match msg_type {
-        "1" => {
+        "128" => {
             // sent
             MessageKind::Sent
         },
-        "2" => {
+        "132" => {
             // received
             MessageKind::Received {
                 date_sent: parse_unix_epoch(element.attr("date_sent"))
             }
         },
-        _ => panic!("Unknown read type {:?}", msg_type)
+        _ => panic!("Unknown message type {:?}", msg_type)
     };
     let parts = element.find_child("parts");
     let parts = parts.child_elements()
