@@ -26,6 +26,7 @@ use std::path::{Path, PathBuf};
 use std::collections::{HashMap, HashSet};
 
 use itertools::Itertools;
+use chrono::{Date, Local};
 
 mod sanitize;
 mod xml;
@@ -33,6 +34,7 @@ mod log;
 mod formatter;
 mod utils;
 mod html;
+mod markdown;
 
 use self::log::PhoneNumber;
 
@@ -47,6 +49,11 @@ fn app() -> ::clap::App<'static, 'static> {
     	(@subcommand html_log =>
     	    (about: "Creates a HTML log of texts with the specified person")
     	    (@arg contact: +required "The contact whose texts we're printing")
+    	)
+    	(@subcommand markdown_log =>
+    	    (about: "Creates a markdown formatted log of a day's texts")
+    	    (@arg contact: +required "The contact whose texts we're printing")
+    	    (@arg date: +required "The date of the texts we're printed")
     	)
     	(@subcommand list_contacts =>
     	    (about: "Lists the names of everyone you've ever texted")
@@ -67,6 +74,12 @@ fn main() {
         ("html_log", Some(matches)) => {
             let contact = matches.value_of("contact").unwrap();
             html_log(&options, contact)
+        },
+        ("markdown_log", Some(matches)) => {
+            let contact = matches.value_of("contact").unwrap();
+            let date: Date<Local> = value_t!(matches, "date", Date<Local>)
+                .unwrap_or_else(|e| e.exit());
+
         }
         ("list_contacts", Some(_)) => list_contacts(&options),
         ("dump_json", Some(matches)) => {
