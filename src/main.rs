@@ -39,14 +39,17 @@ fn app() -> ::clap::App<'static, 'static> {
         (about: "A set of utilities for processing SMS backups")
         (@arg file: +required "Sets the file to read data from")
         (@arg verbose: -v --verbose "Gives verbose error and status information")
-        (@subcommand html_log =>
+        (@subcommand render_html =>
+            (name: "render-html")
             (about: "Creates a HTML log of texts with the specified person")
             (@arg contact: +required "The contact whose texts we're printing")
         )
         (@subcommand list_contacts =>
+            (name: "list-contacts")
             (about: "Lists the names of everyone you've ever texted")
         )
         (@subcommand dump_json =>
+            (name: "dump-json")
             (about: "Dumps a json formatted version of these logs")
             (@arg output: +required "Output JSON file")
         )
@@ -59,12 +62,12 @@ fn main() {
     let verbose = matches.is_present("verbose");
     let options = CommonOptions { file, verbose };
     match matches.subcommand() {
-        ("html_log", Some(matches)) => {
+        ("render-html", Some(matches)) => {
             let contact = matches.value_of("contact").unwrap();
-            html_log(&options, contact)
+            render_html(&options, contact)
         }
-        ("list_contacts", Some(_)) => list_contacts(&options),
-        ("dump_json", Some(matches)) => {
+        ("list-contacts", Some(_)) => list_contacts(&options),
+        ("dump-json", Some(matches)) => {
             let output: PathBuf = matches.value_of("output").unwrap().into();
             dump_json(&options, &output);
         }
@@ -123,7 +126,7 @@ fn dump_json(options: &CommonOptions, output: &Path) {
     let log = options.parse_log();
     fs::write(&output, ::formatter::to_string_escaped(&log)).unwrap();
 }
-fn html_log(options: &CommonOptions, contact: &str) {
+fn render_html(options: &CommonOptions, contact: &str) {
     let log = options.parse_log();
     println!("{}", ::html::render_log(&log, contact).0);
 }
