@@ -72,8 +72,8 @@ pub fn render_date(message: &dyn TextMessage) -> Markup {
 pub fn render_body(message: &dyn TextMessage) -> Markup {
     match message.body() {
         BodyKind::Sms(text) => html! { p { (text) } },
-        BodyKind::Mms { ref parts } => html! {
-            @for part in &**parts {
+        BodyKind::Mms { parts } => html! {
+            @for part in parts {
                 (render_part(part))
             }
         },

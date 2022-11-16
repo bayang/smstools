@@ -26,7 +26,7 @@ pub fn parse_log(verbose: bool, text: String) -> TextLog {
         .children
         .borrow()
         .iter()
-        .find_map(|node| element_contents(&**node))
+        .find_map(|node| element_contents(node))
         .unwrap();
     let mut sms_messages = Vec::new();
     let mut mms_messages = Vec::new();
@@ -142,10 +142,10 @@ struct ElementData {
     children: Vec<Handle>,
 }
 impl ElementData {
-    fn child_elements<'a>(&'a self) -> impl Iterator<Item = ElementData> + 'a {
+    fn child_elements(&self) -> impl Iterator<Item = ElementData> + '_ {
         self.children
             .iter()
-            .filter_map(|node| element_contents(&*node))
+            .filter_map(|node| element_contents(node))
     }
     #[inline]
     fn find_child(&self, name: &str) -> ElementData {
@@ -204,7 +204,7 @@ fn element_contents(node: &Node) -> Option<ElementData> {
     } = node.data
     {
         Some(ElementData {
-            name: local_name(&*name),
+            name: local_name(name),
             attrs: attrs.borrow().iter().map(Attribute::from).collect(),
             children: node.children.borrow().clone(),
         })

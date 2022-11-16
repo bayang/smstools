@@ -30,7 +30,7 @@ pub struct TextLog {
 }
 impl TextLog {
     //noinspection RsNeedlessLifetimes
-    pub fn iter<'a>(&'a self) -> impl Iterator<Item = &'a dyn TextMessage> + 'a {
+    pub fn iter(&self) -> impl Iterator<Item = &dyn TextMessage> + '_ {
         self.sms_messages
             .iter()
             .map(|message| message as &dyn TextMessage)
@@ -58,7 +58,7 @@ impl TextLog {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MmsMessage {
     /// The phone number we're texting
     pub address: PhoneNumber,
@@ -108,7 +108,7 @@ impl TextMessage for MmsMessage {
         BodyKind::Mms { parts: &self.parts }
     }
 }
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MmsMessagePart {
     /// The content type of this message part
     pub content_type: String,
@@ -121,7 +121,7 @@ pub struct MmsMessagePart {
     #[serde(with = "::utils::base64_opt")]
     pub data: Option<Vec<u8>>,
 }
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SmsMessage {
     /// The phone number we're texting
     pub address: PhoneNumber,
@@ -171,7 +171,7 @@ impl TextMessage for SmsMessage {
         BodyKind::Sms(&self.body)
     }
 }
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename = "lower")]
 pub enum MessageKind {
     Sent,
