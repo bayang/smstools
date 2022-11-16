@@ -94,6 +94,6 @@ pub fn render_part(message: &MmsMessagePart) -> Markup {
         }
         "audio/amr" => html!(p { b { "Unsupported audio" } }),
         "video/mp4" => html!(p { b { "Unsupported video (mp4)" } }),
-        _ => unimplemented!("Unknown content type: {}", message.content_type)
+        _ => html!(p { b { "Unknown content type: " } (message.content_type.escape_default().collect::<String>()) })
     }
 }
