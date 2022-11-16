@@ -10,6 +10,7 @@ extern crate maud;
 extern crate serde;
 extern crate serde_json;
 
+extern crate markup5ever_rcdom;
 extern crate xml5ever;
 
 use std::collections::{HashMap, HashSet};

@@ -4,9 +4,9 @@ use std::str::FromStr;
 
 use chrono::{DateTime, TimeZone, Utc};
 
+use markup5ever_rcdom::{Handle, Node, NodeData, RcDom};
 use xml5ever::driver::XmlParseOpts;
 use xml5ever::interface::TreeSink;
-use xml5ever::rcdom::{Handle, Node, NodeData, RcDom};
 use xml5ever::tendril::TendrilSink;
 use xml5ever::Attribute as XmlAttribute;
 use xml5ever::QualName;
