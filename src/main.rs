@@ -1,9 +1,3 @@
-#![feature(
-    iterator_find_map, // indespensible
-    str_escape,
-    range_contains, // Why isn't this already stable?
-    proc_macro_non_items, // Needed for maud
-)]
 #[macro_use]
 extern crate clap;
 extern crate chrono;

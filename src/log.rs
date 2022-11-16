@@ -32,10 +32,10 @@ pub struct TextLog {
 }
 impl TextLog {
     //noinspection RsNeedlessLifetimes
-    pub fn iter<'a>(&'a self) -> impl Iterator<Item=&'a TextMessage> + 'a {
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item=&'a dyn TextMessage> + 'a {
         self.sms_messages.iter()
-            .map(|message| message as &TextMessage)
-            .chain(self.mms_messages.iter().map(|message| message as &TextMessage))
+            .map(|message| message as &dyn TextMessage)
+            .chain(self.mms_messages.iter().map(|message| message as &dyn TextMessage))
     }
     pub fn list_contacts(&self) -> HashMap<PhoneNumber, HashSet<String>> {
         let mut result = HashMap::with_capacity(

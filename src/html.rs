@@ -40,7 +40,7 @@ pub fn render_log(log: &TextLog, contact: &str) -> Markup {
     }
 }
 
-pub fn render_message(message: &TextMessage) -> Markup {
+pub fn render_message(message: &dyn TextMessage) -> Markup {
     match message.kind() {
         MessageKind::Sent => {
             html!(div class="outgoing_msg" {
@@ -63,12 +63,12 @@ pub fn render_message(message: &TextMessage) -> Markup {
         },
     }
 }
-pub fn render_date(message: &TextMessage) -> Markup {
-    let date_format = message.date().date().format("%A %B %e %Y").to_string();
+pub fn render_date(message: &dyn TextMessage) -> Markup {
+    let date_format = message.date().format("%A %B %e %Y").to_string();
     let time_format = message.date().time().format("%-I:%M %p").to_string();
     html!((time_format) "    |    " (date_format))
 }
-pub fn render_body(message: &TextMessage) -> Markup {
+pub fn render_body(message: &dyn TextMessage) -> Markup {
     match message.body() {
         BodyKind::Sms(text) => html! { p { (text) } },
         BodyKind::Mms { ref parts } => html! {

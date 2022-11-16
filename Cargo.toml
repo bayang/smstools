@@ -22,4 +22,4 @@ xml5ever = { git = "https://github.com/servo/html5ever.git", rev = "56b8b30" }
 # Itertools :D
 itertools = "^0.7.8"
 # Templating Engines
-maud = "^0.18.1"
+maud = "0.24"

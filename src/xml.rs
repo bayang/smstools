@@ -103,8 +103,8 @@ fn parse_sms(element: &ElementData) -> SmsMessage {
     SmsMessage { kind, date, body, readable_date, contact_name, address }
 }
 fn parse_unix_epoch(date: &str) -> DateTime<Utc> {
-    Utc.timestamp_millis(i64::from_str(date)
-        .unwrap_or_else(|e| panic!("Invalid digits in {:?}: {}", date, e)))
+    i64::from_str(date).ok().and_then(|val| Utc.timestamp_millis_opt(val).single())
+        .unwrap_or_else(|| panic!("Invalid digits in {:?}", date))
 }
 
 struct ElementData {
