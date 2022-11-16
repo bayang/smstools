@@ -4,6 +4,9 @@ data
 *.xml
 *.html
 
+# MacOS
+.DS_Store
+
 # Intellij
 .idea
 /target
