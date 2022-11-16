@@ -4,51 +4,51 @@ extern crate chrono;
 
 #[macro_use]
 extern crate serde_derive;
-extern crate serde_json;
-extern crate serde;
 extern crate base64;
 extern crate itertools;
 extern crate maud;
+extern crate serde;
+extern crate serde_json;
 
 extern crate xml5ever;
 
-use std::time::{Instant};
-use std::{fs};
-use std::io::{self, BufReader, Read};
-use std::ffi::OsStr;
-use std::path::{Path, PathBuf};
 use std::collections::{HashMap, HashSet};
+use std::ffi::OsStr;
+use std::fs;
+use std::io::{self, BufReader, Read};
+use std::path::{Path, PathBuf};
+use std::time::Instant;
 
 use itertools::Itertools;
 
-mod sanitize;
-mod xml;
-mod log;
 mod formatter;
-mod utils;
 mod html;
+mod log;
+mod sanitize;
+mod utils;
+mod xml;
 
 use self::log::PhoneNumber;
 
 fn app() -> ::clap::App<'static, 'static> {
     clap_app!(smstools =>
-    	(version: crate_version!())
-    	(author: "Techcable <Techcable@techcable.net>")
-    	// SMS Backup & Restore v10.05.210
-    	(about: "A set of utilities for processing SMS backups")
-    	(@arg file: +required "Sets the file to read data from")
-    	(@arg verbose: -v --verbose "Gives verbose error and status information")
-    	(@subcommand html_log =>
-    	    (about: "Creates a HTML log of texts with the specified person")
-    	    (@arg contact: +required "The contact whose texts we're printing")
-    	)
-    	(@subcommand list_contacts =>
-    	    (about: "Lists the names of everyone you've ever texted")
-    	)
-    	(@subcommand dump_json =>
+        (version: crate_version!())
+        (author: "Techcable <Techcable@techcable.net>")
+        // SMS Backup & Restore v10.05.210
+        (about: "A set of utilities for processing SMS backups")
+        (@arg file: +required "Sets the file to read data from")
+        (@arg verbose: -v --verbose "Gives verbose error and status information")
+        (@subcommand html_log =>
+            (about: "Creates a HTML log of texts with the specified person")
+            (@arg contact: +required "The contact whose texts we're printing")
+        )
+        (@subcommand list_contacts =>
+            (about: "Lists the names of everyone you've ever texted")
+        )
+        (@subcommand dump_json =>
             (about: "Dumps a json formatted version of these logs")
-        	(@arg output: +required "Output JSON file")
-    	)
+            (@arg output: +required "Output JSON file")
+        )
     )
 }
 
@@ -66,7 +66,7 @@ fn main() {
         ("dump_json", Some(matches)) => {
             let output: PathBuf = matches.value_of("output").unwrap().into();
             dump_json(&options, &output);
-        },
+        }
         _ => {
             if let Some(name) = matches.subcommand_name() {
                 eprintln!("Invalid subcommand: {:?}", name);
@@ -74,7 +74,6 @@ fn main() {
             app().print_help().unwrap();
         }
     }
-
 }
 fn list_contacts(options: &CommonOptions) {
     const UNKNOWN_CONTACT_NAME: &str = "(Unknown)";
@@ -86,7 +85,8 @@ fn list_contacts(options: &CommonOptions) {
         let mut found_name = false;
         for name in names {
             if name != UNKNOWN_CONTACT_NAME {
-                by_name.entry(name.clone())
+                by_name
+                    .entry(name.clone())
                     .or_insert_with(HashSet::new)
                     .insert(number.clone());
                 found_name = true;
@@ -96,10 +96,10 @@ fn list_contacts(options: &CommonOptions) {
             unnamed_contacts.push(number.clone());
         }
     }
-    let mut named_contacts = by_name.iter()
+    let mut named_contacts = by_name
+        .iter()
         .map(|(name, phones)| {
-            let mut phones = phones.iter().cloned()
-                .collect::<Vec<PhoneNumber>>();
+            let mut phones = phones.iter().cloned().collect::<Vec<PhoneNumber>>();
             phones.sort();
             (name.clone(), phones)
         })
@@ -128,15 +128,20 @@ fn html_log(options: &CommonOptions, contact: &str) {
 }
 struct CommonOptions {
     verbose: bool,
-    file: PathBuf
+    file: PathBuf,
 }
 impl CommonOptions {
     fn parse_log(&self) -> ::log::TextLog {
         let start = Instant::now();
-        let log = self.try_parse_log()
+        let log = self
+            .try_parse_log()
             .unwrap_or_else(|e| panic!("Unable to parse {}: {:?}", self.file.display(), e));
         let duration = start.elapsed();
-        eprintln!("Parsed {} in {}s", self.file.display(), (duration.as_secs() as f64) + ((duration.subsec_millis() as f64) / 1000.0));
+        eprintln!(
+            "Parsed {} in {}s",
+            self.file.display(),
+            (duration.as_secs() as f64) + ((duration.subsec_millis() as f64) / 1000.0)
+        );
         log
     }
     fn try_parse_log(&self) -> Result<::log::TextLog, FileParseError> {
@@ -147,11 +152,10 @@ impl CommonOptions {
                 file.read_to_string(&mut raw_text)?;
                 let sanitized = ::sanitize::cleanup_html_escapes(&raw_text);
                 ::xml::parse_log(self.verbose, sanitized)
-            },
+            }
             Some("json") => ::serde_json::from_reader(file)?,
-            _ => panic!("Unable to determine extension of {}", self.file.display())
+            _ => panic!("Unable to determine extension of {}", self.file.display()),
         })
-
     }
 }
 #[derive(Debug)]

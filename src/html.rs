@@ -1,14 +1,15 @@
 //! Generates nicely formatted HTML from a text message
 
-use maud::{html, Markup};
 use itertools::Itertools;
+use maud::{html, Markup};
 
-use super::log::{TextMessage, TextLog, MessageKind, BodyKind, MmsMessagePart};
+use super::log::{BodyKind, MessageKind, MmsMessagePart, TextLog, TextMessage};
 
 const CSS: &str = include_str!("sms.css");
 
 pub fn render_log(log: &TextLog, contact: &str) -> Markup {
-    let mut messages = log.iter()
+    let mut messages = log
+        .iter()
         .filter(|message| message.contact_name() == contact)
         .collect_vec();
     messages.sort_by_key(|message| message.date());
@@ -49,7 +50,7 @@ pub fn render_message(message: &dyn TextMessage) -> Markup {
                     span class="time_date" { ({ render_date(message) }) }
                 }
             })
-        },
+        }
         MessageKind::Received { .. } => {
             html!(div class="incoming_msg" {
                 // TODO: incoming_msg_img
@@ -60,7 +61,7 @@ pub fn render_message(message: &dyn TextMessage) -> Markup {
                     }
                 }
             })
-        },
+        }
     }
 }
 pub fn render_date(message: &dyn TextMessage) -> Markup {
@@ -94,6 +95,8 @@ pub fn render_part(message: &MmsMessagePart) -> Markup {
         }
         "audio/amr" => html!(p { b { "Unsupported audio" } }),
         "video/mp4" => html!(p { b { "Unsupported video (mp4)" } }),
-        _ => html!(p { b { "Unknown content type: " } (message.content_type.escape_default().collect::<String>()) })
+        _ => {
+            html!(p { b { "Unknown content type: " } (message.content_type.escape_default().collect::<String>()) })
+        }
     }
 }

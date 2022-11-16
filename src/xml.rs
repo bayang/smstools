@@ -2,28 +2,30 @@ use std::collections::HashSet;
 use std::fmt::{self, Debug};
 use std::str::FromStr;
 
-use chrono::{DateTime, Utc, TimeZone};
+use chrono::{DateTime, TimeZone, Utc};
 
-use xml5ever::tendril::{TendrilSink};
-use xml5ever::rcdom::{NodeData, Handle, Node, RcDom};
-use xml5ever::interface::TreeSink;
-use xml5ever::QualName;
-use xml5ever::Attribute as XmlAttribute;
 use xml5ever::driver::XmlParseOpts;
+use xml5ever::interface::TreeSink;
+use xml5ever::rcdom::{Handle, Node, NodeData, RcDom};
+use xml5ever::tendril::TendrilSink;
+use xml5ever::Attribute as XmlAttribute;
+use xml5ever::QualName;
 
-use log::{MessageKind, PhoneNumber, MmsMessagePart, MmsMessage, SmsMessage, TextLog};
+use log::{MessageKind, MmsMessage, MmsMessagePart, PhoneNumber, SmsMessage, TextLog};
 
 pub fn parse_log(verbose: bool, text: String) -> TextLog {
     let mut opts = XmlParseOpts::default();
     opts.tokenizer.exact_errors = verbose;
-    let parser = ::xml5ever::driver::parse_document(
-        RcDom::default(), opts);
+    let parser = ::xml5ever::driver::parse_document(RcDom::default(), opts);
     let mut dom = parser.one(text);
     if verbose {
         println!("Errors {:#?}", dom.errors);
     }
     let document = dom.get_document();
-    let element = document.children.borrow().iter()
+    let element = document
+        .children
+        .borrow()
+        .iter()
         .find_map(|node| element_contents(&**node))
         .unwrap();
     let mut sms_messages = Vec::new();
@@ -35,7 +37,10 @@ pub fn parse_log(verbose: bool, text: String) -> TextLog {
     for mms in element.filter_elements("mms") {
         mms_messages.push(parse_mms(&mms));
     }
-    TextLog { sms_messages, mms_messages }
+    TextLog {
+        sms_messages,
+        mms_messages,
+    }
 }
 
 fn parse_mms(element: &ElementData) -> MmsMessage {
@@ -48,20 +53,28 @@ fn parse_mms(element: &ElementData) -> MmsMessage {
         "128" => {
             // sent
             MessageKind::Sent
-        },
+        }
         "132" => {
             // received
             MessageKind::Received {
-                date_sent: parse_unix_epoch(element.attr("date_sent"))
+                date_sent: parse_unix_epoch(element.attr("date_sent")),
             }
-        },
-        _ => panic!("Unknown message type {:?}", msg_type)
+        }
+        _ => panic!("Unknown message type {:?}", msg_type),
     };
     let parts = element.find_child("parts");
-    let parts = parts.child_elements()
+    let parts = parts
+        .child_elements()
         .map(|part| parse_mms_part(&part))
         .collect::<Vec<MmsMessagePart>>();
-    MmsMessage { kind, date, readable_date, contact_name, address, parts }
+    MmsMessage {
+        kind,
+        date,
+        readable_date,
+        contact_name,
+        address,
+        parts,
+    }
 }
 fn parse_mms_part(element: &ElementData) -> MmsMessagePart {
     assert_eq!(element.name, "part");
@@ -69,9 +82,16 @@ fn parse_mms_part(element: &ElementData) -> MmsMessagePart {
     let content_location = element.attr("cl").to_owned();
     let text = parse_opt_text(element.attr("text"));
     let seq = i32::from_str(element.attr("seq")).unwrap();
-    let data = element.get_attr("data")
+    let data = element
+        .get_attr("data")
         .map(|data| ::base64::decode(data).expect("Unable to base64 decode"));
-    MmsMessagePart { content_type, content_location, text, seq, data, }
+    MmsMessagePart {
+        content_type,
+        content_location,
+        text,
+        seq,
+        data,
+    }
 }
 fn parse_opt_text(text: &str) -> Option<String> {
     if text == "null" {
@@ -91,37 +111,49 @@ fn parse_sms(element: &ElementData) -> SmsMessage {
         "2" => {
             // sent
             MessageKind::Sent
-        },
+        }
         "1" => {
             // received
             MessageKind::Received {
-                date_sent: parse_unix_epoch(element.attr("date_sent"))
+                date_sent: parse_unix_epoch(element.attr("date_sent")),
             }
-        },
-        _ => panic!("Unknown msg type {:?}", msg_type)
+        }
+        _ => panic!("Unknown msg type {:?}", msg_type),
     };
-    SmsMessage { kind, date, body, readable_date, contact_name, address }
+    SmsMessage {
+        kind,
+        date,
+        body,
+        readable_date,
+        contact_name,
+        address,
+    }
 }
 fn parse_unix_epoch(date: &str) -> DateTime<Utc> {
-    i64::from_str(date).ok().and_then(|val| Utc.timestamp_millis_opt(val).single())
+    i64::from_str(date)
+        .ok()
+        .and_then(|val| Utc.timestamp_millis_opt(val).single())
         .unwrap_or_else(|| panic!("Invalid digits in {:?}", date))
 }
 
 struct ElementData {
     name: String,
     attrs: Vec<Attribute>,
-    children: Vec<Handle>
+    children: Vec<Handle>,
 }
 impl ElementData {
-    fn child_elements<'a>(&'a self) -> impl Iterator<Item=ElementData> + 'a {
-        self.children.iter().filter_map(|node| element_contents(&*node))
+    fn child_elements<'a>(&'a self) -> impl Iterator<Item = ElementData> + 'a {
+        self.children
+            .iter()
+            .filter_map(|node| element_contents(&*node))
     }
     #[inline]
     fn find_child(&self, name: &str) -> ElementData {
         self.filter_elements(name).next().unwrap()
     }
-    fn filter_elements<'a>(&'a self, name: &'a str) -> impl Iterator<Item=ElementData> + 'a {
-        self.child_elements().filter(move |element| element.name == name)
+    fn filter_elements<'a>(&'a self, name: &'a str) -> impl Iterator<Item = ElementData> + 'a {
+        self.child_elements()
+            .filter(move |element| element.name == name)
     }
     fn child_name_set(&self) -> HashSet<String> {
         self.child_elements()
@@ -133,7 +165,8 @@ impl ElementData {
         self.get_attr(name).unwrap()
     }
     fn get_attr(&self, name: &str) -> Option<&str> {
-        self.attrs.iter()
+        self.attrs
+            .iter()
             .find(|attr| attr.name == name)
             .map(|attr| &*attr.value)
     }
@@ -150,13 +183,13 @@ impl Debug for ElementData {
 #[derive(Debug)]
 struct Attribute {
     name: String,
-    value: String
+    value: String,
 }
 impl<'a> From<&'a XmlAttribute> for Attribute {
     fn from(xml_attr: &'a XmlAttribute) -> Self {
         Attribute {
             name: local_name(&xml_attr.name),
-            value: String::from(&xml_attr.value)
+            value: String::from(&xml_attr.value),
         }
     }
 }
@@ -164,7 +197,12 @@ fn local_name(name: &QualName) -> String {
     String::from(&*name.local)
 }
 fn element_contents(node: &Node) -> Option<ElementData> {
-    if let NodeData::Element { ref name, ref attrs, .. } = node.data {
+    if let NodeData::Element {
+        ref name,
+        ref attrs,
+        ..
+    } = node.data
+    {
         Some(ElementData {
             name: local_name(&*name),
             attrs: attrs.borrow().iter().map(Attribute::from).collect(),

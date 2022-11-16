@@ -1,6 +1,6 @@
-use std::fmt::{self, Display};
 use chrono::{DateTime, Utc};
 use std::collections::{HashMap, HashSet};
+use std::fmt::{self, Display};
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq, Serialize, Deserialize)]
 pub struct PhoneNumber(pub String);
@@ -20,33 +20,37 @@ pub trait TextMessage {
 }
 pub enum BodyKind<'a> {
     Sms(&'a str),
-    Mms {
-        parts: &'a [MmsMessagePart]
-    }
+    Mms { parts: &'a [MmsMessagePart] },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TextLog {
     pub sms_messages: Vec<SmsMessage>,
-    pub mms_messages: Vec<MmsMessage>
+    pub mms_messages: Vec<MmsMessage>,
 }
 impl TextLog {
     //noinspection RsNeedlessLifetimes
-    pub fn iter<'a>(&'a self) -> impl Iterator<Item=&'a dyn TextMessage> + 'a {
-        self.sms_messages.iter()
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item = &'a dyn TextMessage> + 'a {
+        self.sms_messages
+            .iter()
             .map(|message| message as &dyn TextMessage)
-            .chain(self.mms_messages.iter().map(|message| message as &dyn TextMessage))
+            .chain(
+                self.mms_messages
+                    .iter()
+                    .map(|message| message as &dyn TextMessage),
+            )
     }
     pub fn list_contacts(&self) -> HashMap<PhoneNumber, HashSet<String>> {
-        let mut result = HashMap::with_capacity(
-            self.sms_messages.len() + self.mms_messages.len());
+        let mut result = HashMap::with_capacity(self.sms_messages.len() + self.mms_messages.len());
         for sms in &self.sms_messages {
-            result.entry(sms.address.clone())
+            result
+                .entry(sms.address.clone())
                 .or_insert_with(HashSet::new)
                 .insert(sms.contact_name.clone());
         }
         for mms in &self.mms_messages {
-            result.entry(mms.address.clone())
+            result
+                .entry(mms.address.clone())
                 .or_insert_with(HashSet::new)
                 .insert(mms.contact_name.clone());
         }
@@ -71,7 +75,7 @@ pub struct MmsMessage {
     /// Whether this message was sent or received
     pub kind: MessageKind,
     /// The parts of this MMS message
-    pub parts: Vec<MmsMessagePart>
+    pub parts: Vec<MmsMessagePart>,
 }
 impl TextMessage for MmsMessage {
     #[inline]
@@ -134,7 +138,7 @@ pub struct SmsMessage {
     /// Whether this message was sent or received
     pub kind: MessageKind,
     /// The body of this SMS message
-    pub body: String
+    pub body: String,
 }
 impl TextMessage for SmsMessage {
     #[inline]
@@ -173,6 +177,6 @@ pub enum MessageKind {
     Sent,
     Received {
         /// Date they claimed to send the text (date is when we actually received it)
-        date_sent: DateTime<Utc>
-    }
+        date_sent: DateTime<Utc>,
+    },
 }

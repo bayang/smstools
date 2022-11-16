@@ -1,5 +1,5 @@
-use std::str::FromStr;
 use std::ops::RangeInclusive;
+use std::str::FromStr;
 
 use std::char;
 
@@ -15,7 +15,8 @@ fn decode_utf16_surrogates(low: u32, high: u32) -> char {
     debug_assert_eq!(
         *c.encode_utf16(&mut buf),
         [high as u16, low as u16],
-        "Unexpected roundtrip for {:?}", c
+        "Unexpected roundtrip for {:?}",
+        c
     );
     c
 }
@@ -31,7 +32,11 @@ pub fn cleanup_html_escapes(s: &str) -> String {
             let escape_number = parse_escape_number(escape);
             remaining = &remaining[end + 1..];
             if HIGH_SURROGATES.contains(&escape_number) {
-                assert!(remaining.starts_with("&#"), "Invalid remaining after surrogate: {}", &remaining[..5]);
+                assert!(
+                    remaining.starts_with("&#"),
+                    "Invalid remaining after surrogate: {}",
+                    &remaining[..5]
+                );
                 let low_end = remaining.find(';').unwrap();
                 let low_escape = &remaining[..=low_end];
                 let low_number = parse_escape_number(low_escape);
@@ -65,7 +70,9 @@ mod test {
             "??? Whoop whoop! &#x1F60A; asdf"
         );
         assert_eq!(
-            cleanup_html_escapes("Same to you! &#55356;&#57222;&#55356;&#56826;&#55356;&#56818; asdf-testing;;"),
+            cleanup_html_escapes(
+                "Same to you! &#55356;&#57222;&#55356;&#56826;&#55356;&#56818; asdf-testing;;"
+            ),
             "Same to you! &#x1F386;&#x1F1FA;&#x1F1F2; asdf-testing;;"
         )
     }
