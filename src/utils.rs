@@ -1,4 +1,5 @@
 pub mod base64_opt {
+    use base64::{engine::general_purpose::STANDARD as ENGINE, Engine};
     use serde::{de, Deserialize, Deserializer, Serializer};
 
     pub fn serialize<S>(bytes: &Option<Vec<u8>>, serializer: S) -> Result<S::Ok, S::Error>
@@ -6,7 +7,7 @@ pub mod base64_opt {
         S: Serializer,
     {
         match bytes {
-            Some(bytes) => serializer.serialize_some(&base64::encode(bytes)),
+            Some(bytes) => serializer.serialize_some(&ENGINE.encode(bytes)),
             None => serializer.serialize_none(),
         }
     }
@@ -17,7 +18,7 @@ pub mod base64_opt {
     {
         let s = Option::<String>::deserialize(deserializer)?;
         Ok(match s {
-            Some(s) => Some(base64::decode(&s).map_err(de::Error::custom)?),
+            Some(s) => Some(ENGINE.decode(s).map_err(de::Error::custom)?),
             None => None,
         })
     }

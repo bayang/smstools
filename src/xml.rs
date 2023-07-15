@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::fmt::{self, Debug};
 use std::str::FromStr;
 
+use base64::{engine::general_purpose::STANDARD as BASE64_ENGINE, Engine};
 use chrono::{DateTime, TimeZone, Utc};
 
 use markup5ever_rcdom::{Handle, Node, NodeData, RcDom};
@@ -84,7 +85,7 @@ fn parse_mms_part(element: &ElementData) -> MmsMessagePart {
     let seq = i32::from_str(element.attr("seq")).unwrap();
     let data = element
         .get_attr("data")
-        .map(|data| ::base64::decode(data).expect("Unable to base64 decode"));
+        .map(|data| BASE64_ENGINE.decode(data).expect("Unable to base64 decode"));
     MmsMessagePart {
         content_type,
         content_location,

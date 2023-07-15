@@ -1,5 +1,6 @@
 //! Generates nicely formatted HTML from a text message
 
+use base64::{engine::general_purpose::STANDARD as BASE64_ENGINE, Engine};
 use itertools::Itertools;
 use maud::{html, Markup};
 
@@ -89,7 +90,7 @@ pub fn render_part(message: &MmsMessagePart) -> Markup {
             let data = format!(
                 "data:{};base64,{}",
                 &message.content_type,
-                ::base64::encode(&**data.unwrap())
+                BASE64_ENGINE.encode(&**data.unwrap())
             );
             html!(img src=(data) {})
         }
