@@ -7,7 +7,7 @@ publish = false
 
 [dependencies]
 # Argument parsing
-clap = "^2"
+clap = { version = "4", features = ["derive", "cargo"] }
 # Time library
 chrono = { version = "^0.4", features = ["serde"] }
 # Serde
@@ -24,3 +24,5 @@ markup5ever_rcdom = { git = "https://github.com/servo/html5ever.git", tag = "xml
 itertools = "^0.7.8"
 # Templating Engines
 maud = "0.24"
+# Errors
+anyhow = "1"

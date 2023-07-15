@@ -1,5 +1,3 @@
-#[macro_use]
-extern crate clap;
 extern crate chrono;
 
 #[macro_use]
@@ -16,7 +14,7 @@ extern crate xml5ever;
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
 use std::fs;
-use std::io::{self, BufReader, Read};
+use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
@@ -31,57 +29,71 @@ mod xml;
 
 use self::log::PhoneNumber;
 
-fn app() -> ::clap::App<'static, 'static> {
-    clap_app!(smstools =>
-        (version: crate_version!())
-        (author: "Techcable <Techcable@techcable.net>")
-        // SMS Backup & Restore v10.05.210
-        (about: "A set of utilities for processing SMS backups")
-        (@arg file: +required "Sets the file to read data from")
-        (@arg verbose: -v --verbose "Gives verbose error and status information")
-        (@subcommand render_html =>
-            (name: "render-html")
-            (about: "Creates a HTML log of texts with the specified person")
-            (@arg contact: +required "The contact whose texts we're printing")
-        )
-        (@subcommand list_contacts =>
-            (name: "list-contacts")
-            (about: "Lists the names of everyone you've ever texted")
-        )
-        (@subcommand dump_json =>
-            (name: "dump-json")
-            (about: "Dumps a json formatted version of these logs")
-            (@arg output: +required "Output JSON file")
-        )
-    )
+/// A set of utilities for processing SMS backups
+///
+/// Originially used with SMS Backup & Restore v10.05.210
+#[derive(clap::Parser)]
+#[command(author, version)]
+#[command(propagate_version = true)]
+struct App {
+    /// Gives verbose error and status information
+    #[arg(short, long)]
+    verbose: bool,
+    #[command(subcommand)]
+    command: Command,
 }
 
-fn main() {
-    let matches = app().get_matches();
-    let file: PathBuf = matches.value_of("file").unwrap().into();
-    let verbose = matches.is_present("verbose");
-    let options = CommonOptions { file, verbose };
-    match matches.subcommand() {
-        ("render-html", Some(matches)) => {
-            let contact = matches.value_of("contact").unwrap();
-            render_html(&options, contact)
+#[derive(clap::Subcommand)]
+enum Command {
+    /// Renders a HTML file of all texts with a particular contact
+    RenderHtml {
+        /// The input XML file
+        input_file: PathBuf,
+        /// The contact whose texts to print
+        #[arg(long, required = true)]
+        contact: String,
+    },
+    /// Lists the names of all contexts ever texted
+    ListContacts(ListContacts),
+    /// Dumps a json formatted version of the input file
+    DumpJson {
+        /// The input XML file to read from
+        input_file: PathBuf,
+        /// Output JSON file
+        #[arg(long, required = true)]
+        output: PathBuf,
+    },
+}
+
+fn main() -> anyhow::Result<()> {
+    let app = <App as clap::Parser>::parse();
+    let options = CommonOptions {
+        verbose: app.verbose,
+    };
+    match app.command {
+        Command::RenderHtml {
+            input_file,
+            contact,
+        } => {
+            let log = options.parse_log(&input_file)?;
+            println!("{}", ::html::render_log(&log, &*contact).0);
         }
-        ("list-contacts", Some(_)) => list_contacts(&options),
-        ("dump-json", Some(matches)) => {
-            let output: PathBuf = matches.value_of("output").unwrap().into();
-            dump_json(&options, &output);
-        }
-        _ => {
-            if let Some(name) = matches.subcommand_name() {
-                eprintln!("Invalid subcommand: {:?}", name);
-            }
-            app().print_help().unwrap();
+        Command::ListContacts(args) => list_contacts(&options, &args)?,
+        Command::DumpJson { input_file, output } => {
+            let log = options.parse_log(&input_file)?;
+            fs::write(&output, ::formatter::to_string_escaped(&log))?;
         }
     }
+    Ok(())
 }
-fn list_contacts(options: &CommonOptions) {
+#[derive(clap::Args)]
+struct ListContacts {
+    /// The input XML file to read from
+    input_file: PathBuf,
+}
+fn list_contacts(options: &CommonOptions, contacts: &ListContacts) -> anyhow::Result<()> {
     const UNKNOWN_CONTACT_NAME: &str = "(Unknown)";
-    let log = options.parse_log();
+    let log = options.parse_log(&contacts.input_file)?;
     let contacts = log.list_contacts();
     let mut by_name = HashMap::with_capacity(contacts.len());
     let mut unnamed_contacts = Vec::new();
@@ -118,39 +130,19 @@ fn list_contacts(options: &CommonOptions) {
     for phone in unnamed_contacts {
         println!("  {}", phone);
     }
+    Ok(())
 }
 fn bold_underline<T: AsRef<str>>(text: T) -> String {
     format!("\u{1B}[1;4m{}\u{1B}[0m", text.as_ref())
 }
-fn dump_json(options: &CommonOptions, output: &Path) {
-    let log = options.parse_log();
-    fs::write(&output, ::formatter::to_string_escaped(&log)).unwrap();
-}
-fn render_html(options: &CommonOptions, contact: &str) {
-    let log = options.parse_log();
-    println!("{}", ::html::render_log(&log, contact).0);
-}
 struct CommonOptions {
     verbose: bool,
-    file: PathBuf,
 }
 impl CommonOptions {
-    fn parse_log(&self) -> ::log::TextLog {
+    fn parse_log(&self, path: &Path) -> Result<::log::TextLog, anyhow::Error> {
         let start = Instant::now();
-        let log = self
-            .try_parse_log()
-            .unwrap_or_else(|e| panic!("Unable to parse {}: {:?}", self.file.display(), e));
-        let duration = start.elapsed();
-        eprintln!(
-            "Parsed {} in {}s",
-            self.file.display(),
-            (duration.as_secs() as f64) + ((duration.subsec_millis() as f64) / 1000.0)
-        );
-        log
-    }
-    fn try_parse_log(&self) -> Result<::log::TextLog, FileParseError> {
-        let mut file = BufReader::new(::fs::File::open(&self.file)?);
-        Ok(match self.file.extension().and_then(OsStr::to_str) {
+        let mut file = BufReader::new(::fs::File::open(path)?);
+        let success = match path.extension().and_then(OsStr::to_str) {
             Some("xml") => {
                 let mut raw_text = String::new();
                 file.read_to_string(&mut raw_text)?;
@@ -158,22 +150,14 @@ impl CommonOptions {
                 ::xml::parse_log(self.verbose, sanitized)
             }
             Some("json") => ::serde_json::from_reader(file)?,
-            _ => panic!("Unable to determine extension of {}", self.file.display()),
-        })
+            _ => anyhow::bail!("Unable to determine extension of {}", path.display()),
+        };
+        let duration = start.elapsed();
+        eprintln!(
+            "Parsed {} in {}s",
+            path.display(),
+            (duration.as_secs() as f64) + ((duration.subsec_millis() as f64) / 1000.0)
+        );
+        Ok(success)
     }
 }
-#[derive(Debug)]
-enum FileParseError {
-    Io(io::Error),
-    Json(::serde_json::Error),
-}
-macro_rules! from_errors {
-    ($target:ident, {$($cause:ty => $variant:ident),*}) => {
-        $(impl From<$cause> for $target {
-            fn from(cause: $cause) -> $target {
-                $target::$variant(cause)
-            }
-        })*
-    };
-}
-from_errors!(FileParseError, {io::Error => Io, ::serde_json::Error => Json});
