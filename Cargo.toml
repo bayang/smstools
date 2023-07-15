@@ -17,9 +17,8 @@ serde = { version = "1", features = ["derive"] }
 # base64
 base64 = "0.21"
 base64-serde = "0.7"
-# TODO: Switch to better/different XML system?
-xml5ever = { git = "https://github.com/servo/html5ever.git", tag = "xml5ever-v0.17.0" }
-markup5ever_rcdom = { git = "https://github.com/servo/html5ever.git", tag = "xml5ever-v0.17.0" }
+# XML parser
+roxmltree = "0.18"
 # Itertools :D
 itertools = "0.11"
 # Templating Engines
@@ -33,3 +32,6 @@ log = "0.4"
 [profile.dev.package."*"]
 # Performance turns out to be important here!
 opt-level = 3
+
+[profile.release]
+lto = "thin"

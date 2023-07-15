@@ -1,55 +1,42 @@
-use std::collections::HashSet;
-use std::fmt::{self, Debug};
+use std::fmt::{self, Display};
 use std::str::FromStr;
 
+use anyhow::{anyhow, Context};
 use base64::{engine::general_purpose::STANDARD as BASE64_ENGINE, Engine};
 use chrono::{DateTime, TimeZone, Utc};
+use itertools::Itertools;
 
-use markup5ever_rcdom::{Handle, Node, NodeData, RcDom};
-use xml5ever::driver::XmlParseOpts;
-use xml5ever::interface::TreeSink;
-use xml5ever::tendril::TendrilSink;
-use xml5ever::Attribute as XmlAttribute;
-use xml5ever::QualName;
+use roxmltree::Node;
 
 use crate::model::{MessageKind, MmsMessage, MmsMessagePart, PhoneNumber, SmsMessage, TextLog};
 
-pub fn parse_log(verbose: bool, text: String) -> TextLog {
-    let mut opts = XmlParseOpts::default();
-    opts.tokenizer.exact_errors = verbose;
-    let parser = ::xml5ever::driver::parse_document(RcDom::default(), opts);
-    let mut dom = parser.one(text);
-    if verbose {
-        println!("Errors {:#?}", dom.errors);
-    }
-    let document = dom.get_document();
-    let element = document
-        .children
-        .borrow()
-        .iter()
-        .find_map(|node| element_contents(node))
-        .unwrap();
+pub fn parse_log(text: String) -> anyhow::Result<TextLog> {
+    let document = ::roxmltree::Document::parse(&text).context("Failed to parse XML")?;
+    let element = document.root_element();
     let mut sms_messages = Vec::new();
     let mut mms_messages = Vec::new();
 
-    for sms in element.filter_elements("sms") {
-        sms_messages.push(parse_sms(&sms));
+    for child in element.children().filter(Node::is_element) {
+        match child.tag_name().name() {
+            "sms" => {
+                sms_messages.push(parse_sms(child).context(child.parse_fail_ctx("sms message"))?)
+            }
+            "mms" => mms_messages.push(parse_mms(child).context(child.parse_fail_ctx("mms part"))?),
+            name => anyhow::bail!("Bad tag name {name:?} at {}", child.start_pos()),
+        }
     }
-    for mms in element.filter_elements("mms") {
-        mms_messages.push(parse_mms(&mms));
-    }
-    TextLog {
+    Ok(TextLog {
         sms_messages,
         mms_messages,
-    }
+    })
 }
 
-fn parse_mms(element: &ElementData) -> MmsMessage {
-    let address = PhoneNumber(element.attr("address").into());
-    let date = parse_unix_epoch(element.attr("date"));
-    let readable_date = element.attr("readable_date").to_owned();
-    let contact_name = element.attr("contact_name").to_owned();
-    let msg_type = element.attr("m_type");
+fn parse_mms(element: Node<'_, '_>) -> anyhow::Result<MmsMessage> {
+    let address = PhoneNumber(element.expect_attr("address")?.into());
+    let date = parse_unix_epoch(element.expect_attr("date")?)?;
+    let readable_date = element.expect_attr("readable_date")?.to_owned();
+    let contact_name = element.expect_attr("contact_name")?.to_owned();
+    let msg_type = element.expect_attr("m_type")?;
     let kind = match msg_type {
         "128" => {
             // sent
@@ -58,56 +45,57 @@ fn parse_mms(element: &ElementData) -> MmsMessage {
         "132" => {
             // received
             MessageKind::Received {
-                date_sent: parse_unix_epoch(element.attr("date_sent")),
+                date_sent: parse_unix_epoch(element.expect_attr("date_sent")?)?,
             }
         }
-        _ => panic!("Unknown message type {:?}", msg_type),
+        _ => anyhow::bail!("Unknown message type {msg_type:?}"),
     };
-    let parts = element.find_child("parts");
+    let parts = element.expect_child("parts")?;
     let parts = parts
         .child_elements()
-        .map(|part| parse_mms_part(&part))
-        .collect::<Vec<MmsMessagePart>>();
-    MmsMessage {
+        .map(|part| parse_mms_part(&part).context(part.parse_fail_ctx("mms message part")))
+        .collect::<Result<Vec<MmsMessagePart>, _>>()?;
+    Ok(MmsMessage {
         kind,
         date,
         readable_date,
         contact_name,
         address,
         parts,
-    }
+    })
 }
-fn parse_mms_part(element: &ElementData) -> MmsMessagePart {
-    assert_eq!(element.name, "part");
-    let content_type = element.attr("ct").to_owned();
-    let content_location = element.attr("cl").to_owned();
-    let text = parse_opt_text(element.attr("text"));
-    let seq = i32::from_str(element.attr("seq")).unwrap();
+fn parse_mms_part(element: &Node<'_, '_>) -> anyhow::Result<MmsMessagePart> {
+    assert!(element.has_tag_name("part"));
+    let content_type = element.expect_attr("ct")?.into();
+    let content_location = element.expect_attr("cl")?.into();
+    let text = element
+        .attribute("text")
+        .filter(|&s| s != "null")
+        .map(String::from);
+    let seq = i32::from_str(element.expect_attr("seq")?).context("Invalid string for `seq`")?;
     let data = element
-        .get_attr("data")
-        .map(|data| BASE64_ENGINE.decode(data).expect("Unable to base64 decode"));
-    MmsMessagePart {
+        .attribute("data")
+        .map(|data| {
+            BASE64_ENGINE
+                .decode(data)
+                .context("Unable to base64 decode `data`")
+        })
+        .transpose()?;
+    Ok(MmsMessagePart {
         content_type,
         content_location,
         text,
         seq,
         data,
-    }
+    })
 }
-fn parse_opt_text(text: &str) -> Option<String> {
-    if text == "null" {
-        None
-    } else {
-        Some(text.into())
-    }
-}
-fn parse_sms(element: &ElementData) -> SmsMessage {
-    let address = PhoneNumber(element.attr("address").into());
-    let date = parse_unix_epoch(element.attr("date"));
-    let body = element.attr("body").to_owned();
-    let readable_date = element.attr("readable_date").to_owned();
-    let contact_name = element.attr("contact_name").to_owned();
-    let msg_type = element.attr("type");
+fn parse_sms(element: Node<'_, '_>) -> anyhow::Result<SmsMessage> {
+    let address = PhoneNumber(element.expect_attr("address")?.into());
+    let date = parse_unix_epoch(element.expect_attr("date")?)?;
+    let body = element.expect_attr("body")?.to_owned();
+    let readable_date = element.expect_attr("readable_date")?.to_owned();
+    let contact_name = element.expect_attr("contact_name")?.to_owned();
+    let msg_type = element.expect_attr("type")?;
     let kind = match msg_type {
         "2" => {
             // sent
@@ -116,100 +104,87 @@ fn parse_sms(element: &ElementData) -> SmsMessage {
         "1" => {
             // received
             MessageKind::Received {
-                date_sent: parse_unix_epoch(element.attr("date_sent")),
+                date_sent: parse_unix_epoch(element.expect_attr("date_sent")?)?,
             }
         }
-        _ => panic!("Unknown msg type {:?}", msg_type),
+        _ => anyhow::bail!("Unknown msg type {msg_type:?}"),
     };
-    SmsMessage {
+    Ok(SmsMessage {
         kind,
         date,
         body,
         readable_date,
         contact_name,
         address,
+    })
+}
+struct NodeParseFailContext {
+    role: &'static str,
+    start_pos: roxmltree::TextPos,
+    tag_name: String,
+    tag_namespace: Option<String>,
+}
+impl Display for NodeParseFailContext {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Failed to parse XML node for {} (start: {}, tag: {}",
+            self.role, self.start_pos, self.tag_name
+        )?;
+        if let Some(ref ns) = self.tag_namespace {
+            write!(f, ", tag.namespace = {ns}")?;
+        }
+        f.write_str(")")?;
+        Ok(())
     }
 }
-fn parse_unix_epoch(date: &str) -> DateTime<Utc> {
+// Extension methods for roxmltree::Node
+trait NodeParseUtils<'a, 'input: 'a> {
+    fn as_node(&self) -> &roxmltree::Node<'a, 'input>;
+    fn start_pos(&self) -> roxmltree::TextPos {
+        let node = self.as_node();
+        node.document().text_pos_at(node.range().start)
+    }
+    #[cold]
+    fn parse_fail_ctx(&self, role: &'static str) -> NodeParseFailContext {
+        let node = self.as_node();
+        NodeParseFailContext {
+            role,
+            start_pos: self.start_pos(),
+            tag_name: node.tag_name().name().into(),
+            tag_namespace: node.tag_name().namespace().map(String::from),
+        }
+    }
+    fn expect_attr(&self, name: &str) -> anyhow::Result<&'a str> {
+        self.as_node()
+            .attribute(name)
+            .ok_or_else(|| anyhow!("Expected attribute {name}"))
+    }
+    fn expect_child(&self, name: &str) -> anyhow::Result<Node<'a, 'input>> {
+        self.find_child(name)?
+            .ok_or_else(|| anyhow!("Expected a child named {name:?}"))
+    }
+    fn find_child(&self, name: &str) -> anyhow::Result<Option<Node<'a, 'input>>> {
+        self.child_elements()
+            .filter(|child| child.has_tag_name(name))
+            .at_most_one()
+            .map_err(|_| anyhow!("Expected at most one child named {name:?}"))
+    }
+    fn child_elements(&self) -> ChildElementsIter<'a, 'input> {
+        self.as_node().children().filter(Node::is_element)
+    }
+}
+type ChildElementsIter<'a, 'input> =
+    std::iter::Filter<roxmltree::Children<'a, 'input>, fn(&roxmltree::Node<'a, 'input>) -> bool>;
+impl<'a, 'input: 'a> NodeParseUtils<'a, 'input> for roxmltree::Node<'a, 'input> {
+    #[inline(always)]
+    fn as_node(&self) -> &roxmltree::Node<'a, 'input> {
+        self
+    }
+}
+fn parse_unix_epoch(date: &str) -> anyhow::Result<DateTime<Utc>> {
     i64::from_str(date)
         .ok()
         .and_then(|val| Utc.timestamp_millis_opt(val).single())
-        .unwrap_or_else(|| panic!("Invalid digits in {:?}", date))
-}
-
-struct ElementData {
-    name: String,
-    attrs: Vec<Attribute>,
-    children: Vec<Handle>,
-}
-impl ElementData {
-    fn child_elements(&self) -> impl Iterator<Item = ElementData> + '_ {
-        self.children
-            .iter()
-            .filter_map(|node| element_contents(node))
-    }
-    #[inline]
-    fn find_child(&self, name: &str) -> ElementData {
-        self.filter_elements(name).next().unwrap()
-    }
-    fn filter_elements<'a>(&'a self, name: &'a str) -> impl Iterator<Item = ElementData> + 'a {
-        self.child_elements()
-            .filter(move |element| element.name == name)
-    }
-    fn child_name_set(&self) -> HashSet<String> {
-        self.child_elements()
-            .map(|element| element.name)
-            .collect::<HashSet<_>>()
-    }
-    #[inline]
-    fn attr(&self, name: &str) -> &str {
-        self.get_attr(name).unwrap()
-    }
-    fn get_attr(&self, name: &str) -> Option<&str> {
-        self.attrs
-            .iter()
-            .find(|attr| attr.name == name)
-            .map(|attr| &*attr.value)
-    }
-}
-impl Debug for ElementData {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ElementData")
-            .field("name", &self.name)
-            .field("attrs", &self.attrs)
-            .field("child_names", &self.child_name_set())
-            .finish()
-    }
-}
-#[derive(Debug)]
-struct Attribute {
-    name: String,
-    value: String,
-}
-impl<'a> From<&'a XmlAttribute> for Attribute {
-    fn from(xml_attr: &'a XmlAttribute) -> Self {
-        Attribute {
-            name: local_name(&xml_attr.name),
-            value: String::from(&xml_attr.value),
-        }
-    }
-}
-fn local_name(name: &QualName) -> String {
-    String::from(&*name.local)
-}
-fn element_contents(node: &Node) -> Option<ElementData> {
-    if let NodeData::Element {
-        ref name,
-        ref attrs,
-        ..
-    } = node.data
-    {
-        Some(ElementData {
-            name: local_name(name),
-            attrs: attrs.borrow().iter().map(Attribute::from).collect(),
-            children: node.children.borrow().clone(),
-        })
-    } else {
-        None
-    }
+        .ok_or_else(|| anyhow!("Invalid digits in {date:?}"))
 }
