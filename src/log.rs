@@ -1,11 +1,13 @@
-use chrono::{DateTime, Utc};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display};
+
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq, Serialize, Deserialize)]
 pub struct PhoneNumber(pub String);
 impl Display for PhoneNumber {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.0)
     }
 }
@@ -16,7 +18,7 @@ pub trait TextMessage {
     fn date(&self) -> DateTime<Utc>;
     fn readable_date(&self) -> &str;
     fn kind(&self) -> MessageKind;
-    fn body(&self) -> BodyKind;
+    fn body(&self) -> BodyKind<'_>;
 }
 pub enum BodyKind<'a> {
     Sms(&'a str),
@@ -104,7 +106,7 @@ impl TextMessage for MmsMessage {
     }
 
     #[inline]
-    fn body(&self) -> BodyKind {
+    fn body(&self) -> BodyKind<'_> {
         BodyKind::Mms { parts: &self.parts }
     }
 }
@@ -118,7 +120,7 @@ pub struct MmsMessagePart {
     pub text: Option<String>,
     pub seq: i32,
     /// The binary data of this message part
-    #[serde(with = "::utils::base64_opt")]
+    #[serde(with = "crate::utils::base64_opt")]
     pub data: Option<Vec<u8>>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -167,7 +169,7 @@ impl TextMessage for SmsMessage {
     }
 
     #[inline]
-    fn body(&self) -> BodyKind {
+    fn body(&self) -> BodyKind<'_> {
         BodyKind::Sms(&self.body)
     }
 }

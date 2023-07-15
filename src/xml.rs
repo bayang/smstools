@@ -11,7 +11,7 @@ use xml5ever::tendril::TendrilSink;
 use xml5ever::Attribute as XmlAttribute;
 use xml5ever::QualName;
 
-use log::{MessageKind, MmsMessage, MmsMessagePart, PhoneNumber, SmsMessage, TextLog};
+use crate::log::{MessageKind, MmsMessage, MmsMessagePart, PhoneNumber, SmsMessage, TextLog};
 
 pub fn parse_log(verbose: bool, text: String) -> TextLog {
     let mut opts = XmlParseOpts::default();
@@ -172,7 +172,7 @@ impl ElementData {
     }
 }
 impl Debug for ElementData {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ElementData")
             .field("name", &self.name)
             .field("attrs", &self.attrs)

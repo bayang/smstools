@@ -1,16 +1,4 @@
-extern crate chrono;
-
-#[macro_use]
-extern crate serde_derive;
-extern crate base64;
-extern crate itertools;
-extern crate maud;
-extern crate serde;
-extern crate serde_json;
-
-extern crate markup5ever_rcdom;
-extern crate xml5ever;
-
+#![warn(rust_2021_compatibility, rust_2018_compatibility, rust_2018_idioms)]
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
 use std::fs;
@@ -76,12 +64,12 @@ fn main() -> anyhow::Result<()> {
             contact,
         } => {
             let log = options.parse_log(&input_file)?;
-            println!("{}", ::html::render_log(&log, &*contact).0);
+            println!("{}", crate::html::render_log(&log, &contact).0);
         }
         Command::ListContacts(args) => list_contacts(&options, &args)?,
         Command::DumpJson { input_file, output } => {
             let log = options.parse_log(&input_file)?;
-            fs::write(&output, ::formatter::to_string_escaped(&log))?;
+            fs::write(output, crate::formatter::to_string_escaped(&log))?;
         }
     }
     Ok(())
@@ -139,15 +127,15 @@ struct CommonOptions {
     verbose: bool,
 }
 impl CommonOptions {
-    fn parse_log(&self, path: &Path) -> Result<::log::TextLog, anyhow::Error> {
+    fn parse_log(&self, path: &Path) -> Result<crate::log::TextLog, anyhow::Error> {
         let start = Instant::now();
-        let mut file = BufReader::new(::fs::File::open(path)?);
+        let mut file = BufReader::new(std::fs::File::open(path)?);
         let success = match path.extension().and_then(OsStr::to_str) {
             Some("xml") => {
                 let mut raw_text = String::new();
                 file.read_to_string(&mut raw_text)?;
-                let sanitized = ::sanitize::cleanup_html_escapes(&raw_text);
-                ::xml::parse_log(self.verbose, sanitized)
+                let sanitized = crate::sanitize::cleanup_html_escapes(&raw_text);
+                crate::xml::parse_log(self.verbose, sanitized)
             }
             Some("json") => ::serde_json::from_reader(file)?,
             _ => anyhow::bail!("Unable to determine extension of {}", path.display()),

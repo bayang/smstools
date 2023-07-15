@@ -1,5 +1,4 @@
 pub mod base64_opt {
-    extern crate base64;
     use serde::{de, Deserialize, Deserializer, Serializer};
 
     pub fn serialize<S>(bytes: &Option<Vec<u8>>, serializer: S) -> Result<S::Ok, S::Error>
