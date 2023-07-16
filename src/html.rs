@@ -4,7 +4,7 @@ use base64::{engine::general_purpose::STANDARD as BASE64_ENGINE, Engine};
 use itertools::Itertools;
 use maud::{html, Markup};
 
-use super::log::{BodyKind, MessageKind, MmsMessagePart, TextLog, TextMessage};
+use super::model::{BodyKind, MessageKind, MmsMessagePart, TextLog, TextMessage};
 
 const CSS: &str = include_str!("sms.css");
 
@@ -97,6 +97,10 @@ pub fn render_part(message: &MmsMessagePart) -> Markup {
         "audio/amr" => html!(p { b { "Unsupported audio" } }),
         "video/mp4" => html!(p { b { "Unsupported video (mp4)" } }),
         _ => {
+            log::warn!(
+                "Encountered unknown MIME type in MMS message: {}",
+                message.content_type
+            );
             html!(p { b { "Unknown content type: " } (message.content_type.escape_default().collect::<String>()) })
         }
     }

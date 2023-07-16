@@ -12,7 +12,7 @@ use xml5ever::tendril::TendrilSink;
 use xml5ever::Attribute as XmlAttribute;
 use xml5ever::QualName;
 
-use crate::log::{MessageKind, MmsMessage, MmsMessagePart, PhoneNumber, SmsMessage, TextLog};
+use crate::model::{MessageKind, MmsMessage, MmsMessagePart, PhoneNumber, SmsMessage, TextLog};
 
 pub fn parse_log(verbose: bool, text: String) -> TextLog {
     let mut opts = XmlParseOpts::default();

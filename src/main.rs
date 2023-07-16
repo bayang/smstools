@@ -10,12 +10,12 @@ use itertools::Itertools;
 
 mod formatter;
 mod html;
-mod log;
+mod model;
 mod sanitize;
 mod utils;
 mod xml;
 
-use self::log::PhoneNumber;
+use self::model::PhoneNumber;
 
 /// A set of utilities for processing SMS backups
 ///
@@ -54,6 +54,9 @@ enum Command {
 }
 
 fn main() -> anyhow::Result<()> {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+        .format_timestamp(None)
+        .init();
     let app = <App as clap::Parser>::parse();
     let options = CommonOptions {
         verbose: app.verbose,
@@ -127,7 +130,7 @@ struct CommonOptions {
     verbose: bool,
 }
 impl CommonOptions {
-    fn parse_log(&self, path: &Path) -> Result<crate::log::TextLog, anyhow::Error> {
+    fn parse_log(&self, path: &Path) -> Result<crate::model::TextLog, anyhow::Error> {
         let start = Instant::now();
         let mut file = BufReader::new(std::fs::File::open(path)?);
         let success = match path.extension().and_then(OsStr::to_str) {
@@ -141,7 +144,7 @@ impl CommonOptions {
             _ => anyhow::bail!("Unable to determine extension of {}", path.display()),
         };
         let duration = start.elapsed();
-        eprintln!(
+        log::info!(
             "Parsed {} in {}s",
             path.display(),
             (duration.as_secs() as f64) + ((duration.subsec_millis() as f64) / 1000.0)
