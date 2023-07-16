@@ -83,19 +83,27 @@ pub fn render_body(message: &dyn TextMessage) -> Markup {
 pub fn render_part(message: &MmsMessagePart) -> Markup {
     let text = message.text.as_ref();
     let data = message.data.as_ref();
+    let encode_base64_data = || {
+        format!(
+            "data:{};base64,{}",
+            &message.content_type,
+            BASE64_ENGINE.encode(&**data.unwrap())
+        )
+    };
     match &*message.content_type {
         "application/smil" => html!(),
         "text/plain" => html!(p { (text.unwrap()) }),
         "image/jpeg" | "image/png" => {
-            let data = format!(
-                "data:{};base64,{}",
-                &message.content_type,
-                BASE64_ENGINE.encode(&**data.unwrap())
-            );
+            let data = encode_base64_data();
             html!(img src=(data) {})
         }
         "audio/amr" => html!(p { b { "Unsupported audio" } }),
-        "video/mp4" => html!(p { b { "Unsupported video (mp4)" } }),
+        "video/mp4" | "video/3gpp" => {
+            let data = encode_base64_data();
+            html!(video controls {
+                source src=(data) type=(message.content_type);
+            })
+        }
         _ => {
             log::warn!(
                 "Encountered unknown MIME type in MMS message: {}",
