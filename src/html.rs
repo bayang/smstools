@@ -28,6 +28,7 @@ pub fn render_log(log: &TextLog, contact: &str) -> Markup {
                     integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO"
                     crossorigin="anonymous";
                 style { (CSS) }
+                meta charset="UTF-8";
             }
             body {
                 div class="container" {
