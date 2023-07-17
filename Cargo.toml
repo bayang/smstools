@@ -35,3 +35,6 @@ opt-level = 3
 
 [profile.release]
 lto = "thin"
+
+[profile.dev]
+lto = "thin"
