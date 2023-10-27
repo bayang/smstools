@@ -24,6 +24,9 @@ use self::model::PhoneNumber;
 #[command(author, version)]
 #[command(propagate_version = true)]
 struct App {
+    /// Gives verbose error and status information
+    #[arg(short, long)]
+    verbose: bool,
     #[command(subcommand)]
     command: Command,
 }
@@ -55,7 +58,9 @@ fn main() -> anyhow::Result<()> {
         .format_timestamp(None)
         .init();
     let app = <App as clap::Parser>::parse();
-    let options = CommonOptions {};
+    let options = CommonOptions {
+        verbose: app.verbose,
+    };
     match app.command {
         Command::RenderHtml {
             input_file,
@@ -121,7 +126,9 @@ fn list_contacts(options: &CommonOptions, contacts: &ListContacts) -> anyhow::Re
 fn bold_underline<T: AsRef<str>>(text: T) -> String {
     format!("\u{1B}[1;4m{}\u{1B}[0m", text.as_ref())
 }
-struct CommonOptions {}
+struct CommonOptions {
+    verbose: bool,
+}
 impl CommonOptions {
     fn parse_log(&self, path: &Path) -> Result<crate::model::TextLog, anyhow::Error> {
         let start = Instant::now();
@@ -131,7 +138,7 @@ impl CommonOptions {
                 let mut raw_text = String::new();
                 file.read_to_string(&mut raw_text)?;
                 let sanitized = crate::sanitize::cleanup_html_escapes(&raw_text);
-                crate::xml::parse_log(sanitized)?
+                crate::xml::parse_log(self.verbose, sanitized)
             }
             Some("json") => ::serde_json::from_reader(file)?,
             _ => anyhow::bail!("Unable to determine extension of {}", path.display()),
