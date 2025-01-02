@@ -94,7 +94,7 @@ pub fn render_part(message: &MmsMessagePart) -> Markup {
     match &*message.content_type {
         "application/smil" => html!(),
         "text/plain" => html!(p { (text.unwrap()) }),
-        "image/jpeg" | "image/png" => {
+        "image/jpeg" | "image/png" | "image/gif" => {
             let data = encode_base64_data();
             html!(img src=(data) {})
         }
